@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Cocina 345 · Le Frat</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&family=Permanent+Marker&display=swap">
+<style>
+:root {
+  --bg: #ffffff; --surface: #ffffff; --surface-2: #f4f6f5; --ink: #1b2220; --muted: #5b6864; --line: #d2d9d6;
+  --accent: #0f6b57; --accent-ink: #ffffff; --accent-soft: #dcefe9;
+  --tape: #f1dc93; --tape-edge: #e3c96f; --marker: #1d2b6e;
+  --ok: #157f3c; --warn: #a75a06; --bad: #b42318; --bad-soft: #fde8e6;
+  --f-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-marker: "Permanent Marker", "Marker Felt", "Comic Sans MS", cursive;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a211f; --surface: #1a211f; --surface-2: #222b28; --ink: #e7edea; --muted: #9aa8a3; --line: #2e3936;
+    --accent: #3fb896; --accent-ink: #0a1411; --accent-soft: #173a31;
+    --ok: #4cc27a; --warn: #e3a04a; --bad: #f2776b; --bad-soft: #3a1d1a; color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 16px; line-height: 1.45; }
+.app { max-width: 480px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
+.bar { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--line); min-height: 60px;
+  position: sticky; top: 0; background: var(--bg); z-index: 2; }
+.back { border: 0; background: var(--surface-2); color: var(--ink); width: 38px; height: 38px; border-radius: 10px; font-size: 20px; cursor: pointer; }
+.bar h1 { font: 700 22px/1 var(--f-display); letter-spacing: .01em; margin: 0; text-transform: uppercase; }
+.bar .where { margin-left: auto; font-size: 12px; color: var(--muted); text-align: right; line-height: 1.2; }
+.screen { padding: 18px 16px 28px; display: flex; flex-direction: column; gap: 16px; flex: 1; }
+[hidden] { display: none !important; }
+
+label, .lbl { font-weight: 600; font-size: 14px; }
+.hint { font-size: 13px; color: var(--muted); }
+select, input[type="number"], textarea {
+  width: 100%; font: 500 17px var(--f-body); color: var(--ink); background: var(--surface-2);
+  border: 1px solid var(--line); border-radius: 12px; padding: 12px; min-height: 50px;
+}
+textarea { min-height: 80px; resize: vertical; }
+select:focus, input:focus, textarea:focus, button:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+.field, .who { display: flex; flex-direction: column; gap: 6px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.big { display: grid; gap: 12px; }
+.tile { display: grid; grid-template-columns: 52px 1fr; gap: 14px; align-items: center; text-align: left; width: 100%;
+  padding: 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); color: var(--ink); cursor: pointer; font: inherit; }
+.tile .ic { width: 52px; height: 52px; border-radius: 14px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font: 700 22px var(--f-display); }
+.tile b { display: block; font: 700 24px/1.05 var(--f-display); text-transform: uppercase; color: var(--ink); }
+.tile span { font-size: 14px; color: var(--muted); }
+.count { display: block; margin-top: 4px; font-size: 12px !important; font-weight: 600; color: var(--warn) !important; }
+
+.stepper { display: grid; grid-template-columns: 56px 1fr 56px; gap: 8px; }
+.stepper button { border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); border-radius: 12px; font: 600 24px var(--f-body); cursor: pointer; }
+.stepper output { display: grid; place-items: center; font: 700 28px var(--f-display); background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; min-height: 50px; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.seg button { min-height: 48px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); font: 600 16px var(--f-body); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+details { border: 1px dashed var(--line); border-radius: 12px; padding: 10px 12px; }
+summary { cursor: pointer; font-weight: 600; font-size: 14px; color: var(--muted); }
+details[open] summary { margin-bottom: 10px; }
+.expect { font-size: 13px; color: var(--muted); }
+
+.primary { margin-top: auto; min-height: 56px; border: 0; border-radius: 14px; background: var(--accent); color: var(--accent-ink); font: 700 22px var(--f-display); text-transform: uppercase; letter-spacing: .03em; cursor: pointer; }
+.primary:disabled { opacity: .45; cursor: progress; }
+.ghost { min-height: 48px; border: 1px solid var(--line); border-radius: 14px; background: transparent; color: var(--ink); font: 600 16px var(--f-body); cursor: pointer; }
+.err { color: var(--bad); font-size: 14px; font-weight: 600; margin: 0; }
+.copy-h { font-size: 15px; margin: 0; }
+
+.list { display: grid; gap: 10px; }
+.item { border: 1px solid var(--line); border-radius: 14px; padding: 12px; display: grid; gap: 10px; background: var(--surface); }
+.item.on { border-color: var(--accent); background: var(--accent-soft); }
+.item-top { display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: center; }
+.item-top.solo { grid-template-columns: 1fr; }
+.item-top input[type="checkbox"] { width: 24px; height: 24px; accent-color: var(--accent); }
+.item-top b { font-weight: 600; display: block; }
+.code { font: 700 15px var(--f-display); letter-spacing: .04em; color: var(--muted); }
+.qty { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
+.qty input { min-height: 44px; }
+.unit { font-size: 14px; color: var(--muted); min-width: 40px; }
+.ok-bad { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.ok-bad button { min-height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); font: 600 14px var(--f-body); cursor: pointer; }
+.ok-bad button[aria-pressed="true"].g { background: var(--ok); border-color: var(--ok); color: #fff; }
+.ok-bad button[aria-pressed="true"].b { background: var(--bad); border-color: var(--bad); color: #fff; }
+.empty { color: var(--muted); font-size: 14px; padding: 14px; border: 1px dashed var(--line); border-radius: 12px; text-align: center; }
+
+.done-h { font: 700 26px/1.05 var(--f-display); text-transform: uppercase; margin: 0; color: var(--ok); }
+.tape {
+  background: var(--tape); color: var(--marker); padding: 18px 18px 16px; border-radius: 3px;
+  transform: rotate(-1.2deg); box-shadow: 0 2px 0 var(--tape-edge), 0 8px 18px rgba(0,0,0,.12);
+  font-family: var(--f-marker); font-size: 22px; line-height: 1.3;
+}
+.tape .l1 { font-size: 34px; }
+.tape .vence { font-size: 28px; }
+.tape small { font-size: 17px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font-size: 13px; font-weight: 600; padding: 6px 10px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); }
+.chip.good { color: var(--ok); }
+.chip.low { color: var(--bad); background: var(--bad-soft); border-color: transparent; }
+.diff { display: grid; gap: 6px; }
+.diff div { display: grid; grid-template-columns: 1fr auto; gap: 8px; font-size: 15px; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); font-variant-numeric: tabular-nums; }
+.diff .neg { background: var(--bad-soft); color: var(--bad); font-weight: 600; }
+.loading { padding: 40px 16px; text-align: center; color: var(--muted); }
+.sub { font: 700 18px var(--f-display); text-transform: uppercase; letter-spacing: .02em; margin: 6px 0 0; }
+.mp { border: 1px solid var(--line); border-radius: 14px; padding: 12px; display: grid; gap: 8px; background: var(--surface); }
+.mp-top { display: grid; grid-template-columns: 1fr 40px; gap: 8px; align-items: center; }
+.quitar { width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); color: var(--bad); font-size: 20px; cursor: pointer; }
+.add { min-height: 48px; border: 1px dashed var(--accent); border-radius: 14px; background: transparent; color: var(--accent); font: 600 16px var(--f-body); cursor: pointer; }
+input[type="date"] { width: 100%; font: 500 16px var(--f-body); color: var(--ink); background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; min-height: 44px; }
+.row-q { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.row-q .lbl-s { font-size: 12px; color: var(--muted); font-weight: 600; }
+@media (prefers-reduced-motion: reduce) { .tape { transform: none; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="bar">
+    <button class="back" id="back" hidden aria-label="Volver">‹</button>
+    <h1 id="title">Cocina</h1>
+    <div class="where" id="where">Tres Cuatro Cinco<br>Le Frat</div>
+  </div>
+
+  <div class="loading" id="loading">Cargando…</div>
+  <p class="err" id="fatal" hidden style="padding:16px"></p>
+
+  <section class="screen" id="s-inicio" hidden>
+    <div class="who">
+      <label for="resp">¿Quién eres?</label>
+      <select id="resp"></select>
+      <span class="hint">El celular lo recuerda. Solo se elige la primera vez.</span>
+    </div>
+    <div class="big">
+      <button class="tile" data-go="prod"><span class="ic">P</span><span><b>Producción</b><span>Terminé una preparación en 345</span></span></button>
+      <button class="tile" data-go="desp"><span class="ic">D</span><span><b>Despacho</b><span>Sale el pedido de 345 a Le Frat</span><span class="count" id="cnt-desp"></span></span></button>
+      <button class="tile" data-go="rec"><span class="ic">R</span><span><b>Recepción</b><span>Llegó un pedido de 345 o materia prima</span><span class="count" id="cnt-rec"></span></span></button>
+    </div>
+  </section>
+
+  <section class="screen" id="s-prod" hidden>
+    <div class="field"><label for="p-prod">Producto</label><select id="p-prod"></select></div>
+    <div class="field">
+      <span class="lbl">Tandas</span>
+      <div class="stepper">
+        <button id="t-menos" aria-label="Menos media tanda">−</button>
+        <output id="t-val">1</output>
+        <button id="t-mas" aria-label="Más media tanda">+</button>
+      </div>
+      <span class="expect" id="p-expect"></span>
+    </div>
+    <div class="field">
+      <label for="p-peso" id="p-peso-lbl">Peso final (g)</label>
+      <input id="p-peso" type="number" inputmode="decimal">
+    </div>
+    <div class="field">
+      <span class="lbl">¿Cambiaste algo de la receta?</span>
+      <div class="seg" id="p-camb">
+        <button aria-pressed="true" data-v="No">No</button>
+        <button aria-pressed="false" data-v="Sí">Sí</button>
+      </div>
+    </div>
+    <div class="field" id="p-obs-w" hidden>
+      <label for="p-obs">¿Qué cambiaste?</label>
+      <textarea id="p-obs" placeholder="Ej. faltó tomate chonto, se usó 600 g"></textarea>
+    </div>
+    <details>
+      <summary>Más datos (opcional)</summary>
+      <div class="row2">
+        <div class="field"><label for="p-temp">Temp. al guardar (°C)</label><input id="p-temp" type="number" inputmode="decimal" placeholder="4"></div>
+        <div class="field"><label for="p-porc">Porciones</label><input id="p-porc" type="number" inputmode="numeric"></div>
+      </div>
+    </details>
+    <p class="err" id="p-err" hidden></p>
+    <button class="primary" id="p-save">Guardar producción</button>
+  </section>
+
+  <section class="screen" id="s-desp" hidden>
+    <p class="sub">Producciones</p>
+    <p class="copy-h">Marca lo que va en este envío. La cantidad ya viene llena con todo el lote; cámbiala si mandas menos.</p>
+    <div class="list" id="d-list"></div>
+    <p class="sub">Materia prima</p>
+    <div class="list" id="d-mp"></div>
+    <button class="add" id="d-mp-add">+ Agregar materia prima</button>
+    <div class="field">
+      <label for="d-temp">Temperatura de la nevera de transporte (°C)</label>
+      <input id="d-temp" type="number" inputmode="decimal" placeholder="Ej. 3">
+    </div>
+    <p class="err" id="d-err" hidden></p>
+    <button class="primary" id="d-save">Registrar despacho</button>
+  </section>
+
+  <section class="screen" id="s-rec" hidden>
+    <div class="field">
+      <span class="lbl">¿Qué llegó?</span>
+      <div class="seg" id="r-modo">
+        <button aria-pressed="true" data-v="desp">Pedido de 345</button>
+        <button aria-pressed="false" data-v="mp">Materia prima</button>
+      </div>
+    </div>
+    <div id="r-desp-w" class="field" style="gap:16px">
+      <div class="field"><label for="r-desp">¿Qué despacho llegó?</label><select id="r-desp"></select></div>
+      <p class="copy-h">Cuenta o pesa cada cosa. Si coincide, no toques nada.</p>
+      <div class="list" id="r-list"></div>
+    </div>
+    <div id="r-mp-w" class="field" style="gap:16px" hidden>
+      <div class="field">
+        <span class="lbl">¿Dónde la estás recibiendo?</span>
+        <div class="seg" id="r-sede">
+          <button aria-pressed="true" data-v="345">Tres Cuatro Cinco</button>
+          <button aria-pressed="false" data-v="Le Frat">Le Frat</button>
+        </div>
+      </div>
+      <div class="list" id="r-mp"></div>
+      <button class="add" id="r-mp-add">+ Agregar otro artículo</button>
+    </div>
+    <div class="field">
+      <label for="r-temp">Temperatura al llegar (°C)</label>
+      <input id="r-temp" type="number" inputmode="decimal" placeholder="Ej. 5">
+    </div>
+    <p class="err" id="r-err" hidden></p>
+    <button class="primary" id="r-save">Confirmar recepción</button>
+  </section>
+
+  <section class="screen" id="s-done" hidden>
+    <p class="done-h" id="done-h">Guardado</p>
+    <p class="copy-h" id="done-copy"></p>
+    <div class="tape" id="tape"></div>
+    <div class="chips" id="done-chips"></div>
+    <div class="diff" id="done-diff"></div>
+    <button class="ghost" id="done-again">Registrar otra</button>
+    <button class="primary" id="done-home">Volver al inicio</button>
+  </section>
+</div>
+
+<script>
+(function () {
+  let D = { productos: [], responsables: [], lotes: [], insumos: [], despachos: [] };
+  let P = {};
+  const $ = id => document.getElementById(id);
+  const screens = ['inicio', 'prod', 'desp', 'rec', 'done'];
+  const TITULOS = { inicio: 'Cocina', prod: 'Producción', desp: 'Despacho', rec: 'Recepción', done: 'Listo' };
+  let ultimo = 'prod';
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const n = v => Number(v).toLocaleString('es-CO');
+
+  // Enlace de la implementación de Apps Script que guarda en la hoja
+  const API_URL = 'https://script.google.com/macros/s/AKfycbyLfGdI0zU4OSYnAP6OK9Wp_dwg0j4L2klaBBbIK607qvhLVoodSjvYstrjnDx2abp08w/exec';
+  const enGoogle = !!(window.google && google.script && google.script.run);
+
+  // Fuera de Google se habla con la hoja por fetch, sin cookies: así no importa cuántas cuentas tenga el celular.
+  function server(accion, datos) {
+    const pedir = enGoogle
+      ? new Promise((ok, ko) => google.script.run.withSuccessHandler(ok).withFailureHandler(ko).api(accion, datos || {}))
+      : fetch(API_URL, { method: 'POST', credentials: 'omit', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ accion, datos: datos || {} }) })
+          .then(r => { if (!r.ok) throw new Error('Sin conexión con la hoja (' + r.status + ').'); return r.json(); });
+    return pedir.then(r => { if (!r || !r.ok) throw new Error(r && r.error ? r.error : 'Error desconocido'); return r.data; },
+      e => { throw new Error(/fetch|network|Failed/i.test(msg(e)) ? 'No hay internet o no se pudo llegar a la hoja. Intenta de nuevo.' : msg(e)); });
+  }
+  function msg(e) { return (e && e.message ? e.message : String(e)).replace(/^Error:\s*/, ''); }
+
+  function cargar() {
+    return server('getDatos').then(d => {
+      D = d;
+      P = Object.fromEntries(d.productos.map(p => [p.c, p]));
+      const sel = $('resp');
+      const previo = sel.value || (function () { try { return localStorage.getItem('lf-resp'); } catch (e) { return null; } })();
+      sel.innerHTML = '<option value="">Elige tu nombre</option>' + d.responsables.map(r => `<option>${esc(r)}</option>`).join('');
+      if (previo && d.responsables.includes(previo)) sel.value = previo;
+      $('p-prod').innerHTML = d.productos.map(p => `<option value="${esc(p.c)}">${esc(p.n)}</option>`).join('');
+      contar();
+    });
+  }
+
+  function ir(k) {
+    if (['prod', 'desp', 'rec'].includes(k) && !$('resp').value) {
+      $('resp').focus(); $('resp').style.outline = '3px solid var(--bad)'; return;
+    }
+    $('resp').style.outline = '';
+    screens.forEach(s => { $('s-' + s).hidden = s !== k; });
+    $('title').textContent = TITULOS[k];
+    $('back').hidden = k === 'inicio';
+    $('where').innerHTML = k === 'rec' ? '' : k === 'inicio' ? 'Tres Cuatro Cinco<br>Le Frat' : k === 'done' ? '' : 'Tres Cuatro Cinco';
+    if (k === 'prod') prepProd();
+    if (k === 'desp') prepDesp();
+    if (k === 'rec') prepRec();
+    if (k === 'inicio') contar();
+    window.scrollTo(0, 0);
+  }
+
+  function contar() {
+    const l = D.lotes.length, d = D.despachos.length;
+    $('cnt-desp').textContent = l ? l + (l === 1 ? ' lote listo para enviar' : ' lotes listos para enviar') : '';
+    $('cnt-rec').textContent = d ? d + (d === 1 ? ' despacho en camino' : ' despachos en camino') : '';
+  }
+
+  $('resp').addEventListener('change', () => { try { localStorage.setItem('lf-resp', $('resp').value); } catch (e) {} $('resp').style.outline = ''; });
+  document.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => ir(b.dataset.go)));
+  $('back').addEventListener('click', () => ir('inicio'));
+  $('done-home').addEventListener('click', () => ir('inicio'));
+  $('done-again').addEventListener('click', () => ir(ultimo));
+
+  function ocupado(btn, si, texto) {
+    btn.disabled = si;
+    if (si) { btn.dataset.t = btn.textContent; btn.textContent = 'Guardando…'; } else { btn.textContent = texto || btn.dataset.t; }
+  }
+  function cinta(lineas) { $('tape').hidden = false; $('tape').innerHTML = lineas; }
+
+  // ---------- Producción ----------
+  let tandas = 1;
+  function pintarProd() {
+    const p = P[$('p-prod').value]; if (!p) return;
+    $('t-val').textContent = String(tandas).replace('.', ',');
+    const esp = p.esp * tandas;
+    $('p-expect').textContent = esp ? `Deberían salir ${n(esp)} ${p.u}` : 'Esta preparación aún no tiene cantidad esperada en la hoja.';
+    $('p-peso-lbl').textContent = p.u === 'g' ? 'Peso final (g)' : p.u === 'paq' ? 'Paquetes que salieron' : 'Unidades que salieron';
+    $('p-peso').placeholder = esp ? 'Ej. ' + Math.round(esp * 0.95) : '';
+  }
+  function prepProd() {
+    tandas = 1; ['p-peso', 'p-obs', 'p-temp', 'p-porc'].forEach(id => { $(id).value = ''; });
+    $('p-err').hidden = true; setSeg('No'); pintarProd();
+  }
+  $('p-prod').addEventListener('change', pintarProd);
+  $('t-menos').addEventListener('click', () => { tandas = Math.max(0.5, tandas - 0.5); pintarProd(); });
+  $('t-mas').addEventListener('click', () => { tandas = Math.min(20, tandas + 0.5); pintarProd(); });
+  function setSeg(v) {
+    document.querySelectorAll('#p-camb button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === v)));
+    $('p-obs-w').hidden = v !== 'Sí';
+  }
+  document.querySelectorAll('#p-camb button').forEach(b => b.addEventListener('click', () => setSeg(b.dataset.v)));
+
+  $('p-save').addEventListener('click', () => {
+    const real = Number(String($('p-peso').value).replace(',', '.'));
+    if (!real || real <= 0) { $('p-err').textContent = 'Escribe la cantidad final para poder guardar.'; $('p-err').hidden = false; $('p-peso').focus(); return; }
+    const cambios = document.querySelector('#p-camb [aria-pressed="true"]').dataset.v;
+    const btn = $('p-save'); ocupado(btn, true);
+    server('guardarProduccion', { c: $('p-prod').value, tandas, real, cambios, obs: $('p-obs').value,
+      temp: $('p-temp').value, porc: $('p-porc').value, resp: $('resp').value })
+      .then(r => {
+        $('done-h').textContent = 'Producción guardada';
+        $('done-copy').textContent = 'Escribe esto con marcador en la bolsa:';
+        cinta(`<div class="l1">${esc(r.lote)}</div><div>${esc(r.nombre)}</div>` +
+          (r.vence ? `<div class="vence">Vence ${esc(r.vence)}</div>` : '') +
+          `<small>${r.cons.startsWith('Refrig') ? 'Nevera 0-4 °C' : esc(r.cons)} · ${esc($('resp').value.split(' ')[0])}</small>`);
+        const bajo = r.rend !== null && r.rend < 0.9;
+        $('done-chips').innerHTML =
+          (r.rend !== null ? `<span class="chip ${bajo ? 'low' : 'good'}">Rendimiento ${Math.round(r.rend * 100)} %${bajo ? ' · revisar' : ''}</span>` : '') +
+          `<span class="chip">Elaborado ${esc(r.elaborado)}</span><span class="chip">${n(r.real)} ${esc(r.u)}</span>`;
+        $('done-diff').innerHTML = '';
+        ultimo = 'prod';
+        ir('done');
+        return cargar();
+      })
+      .catch(e => { $('p-err').textContent = msg(e); $('p-err').hidden = false; })
+      .finally(() => ocupado(btn, false));
+  });
+
+  // ---------- Materia prima: filas reutilizables ----------
+  function opcionesInsumos() {
+    return '<option value="">Elige el artículo</option>' +
+      D.insumos.map((x, i) => `<option value="${i}">${esc(x.n)} (${esc(x.u)})</option>`).join('');
+  }
+  function filaMP(cont, conVence) {
+    const el = document.createElement('div');
+    el.className = 'mp';
+    el.innerHTML = `<div class="mp-top"><select aria-label="Artículo">${opcionesInsumos()}</select>
+        <button class="quitar" aria-label="Quitar">×</button></div>
+      <div class="row-q">
+        <div class="field"><span class="lbl-s">Cantidad</span><div class="qty"><input type="number" inputmode="decimal" aria-label="Cantidad"><span class="unit">—</span></div></div>
+        ${conVence ? '<div class="field"><span class="lbl-s">Vence (opcional)</span><input type="date" aria-label="Vence"></div>' : '<div></div>'}
+      </div>
+      ${conVence ? '<div class="ok-bad"><button class="g" aria-pressed="true" data-v="ok">Llegó bien</button><button class="b" aria-pressed="false" data-v="mal">Llegó mal</button></div>' : ''}`;
+    const sel = el.querySelector('select');
+    sel.addEventListener('change', () => {
+      const x = D.insumos[Number(sel.value)];
+      el.querySelector('.unit').textContent = x ? x.u : '—';
+    });
+    el.querySelector('.quitar').addEventListener('click', () => el.remove());
+    el.querySelectorAll('.ok-bad button').forEach(b => b.addEventListener('click', () => {
+      el.querySelectorAll('.ok-bad button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    }));
+    cont.appendChild(el);
+    sel.focus();
+  }
+  function leerMP(cont) {
+    const out = [];
+    let incompleta = false;
+    cont.querySelectorAll('.mp').forEach(el => {
+      const x = D.insumos[Number(el.querySelector('select').value)];
+      const cant = el.querySelector('input[type=number]').value;
+      if (!x && !cant) return;
+      if (!x || !(Number(String(cant).replace(',', '.')) > 0)) { incompleta = true; return; }
+      const v = el.querySelector('input[type=date]');
+      const mal = el.querySelector('.ok-bad [data-v="mal"]');
+      out.push({ mp: true, n: x.n, u: x.u, cant, vence: v ? v.value : '', mal: mal ? mal.getAttribute('aria-pressed') === 'true' : false });
+    });
+    return { items: out, incompleta };
+  }
+
+  // ---------- Despacho ----------
+  function prepDesp() {
+    $('d-err').hidden = true; $('d-temp').value = ''; $('d-mp').innerHTML = '';
+    if (!D.lotes.length) {
+      $('d-list').innerHTML = '<div class="empty">No hay producciones pendientes en 345.</div>';
+    } else {
+      $('d-list').innerHTML = D.lotes.map((l, i) => `<div class="item" data-i="${i}">
+          <div class="item-top">
+            <input type="checkbox" id="dk-${i}" aria-label="Incluir ${esc(l.n)}">
+            <label for="dk-${i}"><b>${esc(l.n)}</b><span class="code">${esc(l.lote)} · ${esc(l.fecha)}</span></label>
+          </div>
+          <div class="qty" hidden><input type="number" inputmode="decimal" id="dq-${i}" value="${l.cant}" aria-label="Cantidad enviada"><span class="unit">${esc(l.u)}</span></div>
+        </div>`).join('');
+      $('d-list').querySelectorAll('.item').forEach(el => {
+        const cb = el.querySelector('input[type=checkbox]');
+        cb.addEventListener('change', () => { el.classList.toggle('on', cb.checked); el.querySelector('.qty').hidden = !cb.checked; });
+      });
+    }
+  }
+  $('d-mp-add').addEventListener('click', () => filaMP($('d-mp'), false));
+  $('d-save').addEventListener('click', () => {
+    const items = [];
+    $('d-list').querySelectorAll('.item').forEach(el => {
+      const i = Number(el.dataset.i);
+      if (el.querySelector('input[type=checkbox]').checked) items.push({ lote: D.lotes[i].lote, cant: $('dq-' + i).value || D.lotes[i].cant });
+    });
+    const mp = leerMP($('d-mp'));
+    if (mp.incompleta) { $('d-err').textContent = 'A una materia prima le falta el artículo o la cantidad.'; $('d-err').hidden = false; return; }
+    items.push(...mp.items.map(x => ({ mp: true, n: x.n, u: x.u, cant: x.cant })));
+    if (!items.length) { $('d-err').textContent = 'Marca una producción o agrega una materia prima.'; $('d-err').hidden = false; return; }
+    const btn = $('d-save'); ocupado(btn, true);
+    server('guardarDespacho', { items, temp: $('d-temp').value, resp: $('resp').value })
+      .then(r => {
+        $('done-h').textContent = 'Despacho registrado';
+        $('done-copy').textContent = 'Escribe esto en la canasta o la nevera de transporte:';
+        cinta(`<div class="l1">${esc(r.id)}</div><div>Para Le Frat · ${r.n} ${r.n === 1 ? 'artículo' : 'artículos'}</div><small>${esc($('resp').value.split(' ')[0])}</small>`);
+        $('done-chips').innerHTML = items.map(it => `<span class="chip">${esc(it.lote || it.n)}</span>`).join('');
+        $('done-diff').innerHTML = '';
+        ultimo = 'desp';
+        ir('done');
+        return cargar();
+      })
+      .catch(e => { $('d-err').textContent = msg(e); $('d-err').hidden = false; })
+      .finally(() => ocupado(btn, false));
+  });
+
+  // ---------- Recepción ----------
+  let modoRec = 'desp';
+  function setModoRec(v) {
+    modoRec = v;
+    document.querySelectorAll('#r-modo button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === v)));
+    $('r-desp-w').hidden = v !== 'desp';
+    $('r-mp-w').hidden = v !== 'mp';
+    $('r-save').disabled = v === 'desp' && !D.despachos.length;
+    $('r-save').textContent = v === 'desp' ? 'Confirmar recepción' : 'Registrar materia prima';
+    $('where').textContent = v === 'desp' ? 'Le Frat' : '';
+    if (v === 'mp' && !$('r-mp').children.length) filaMP($('r-mp'), true);
+  }
+  document.querySelectorAll('#r-modo button').forEach(b => b.addEventListener('click', () => setModoRec(b.dataset.v)));
+  document.querySelectorAll('#r-sede button').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('#r-sede button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  }));
+  $('r-mp-add').addEventListener('click', () => filaMP($('r-mp'), true));
+
+  function prepRec() {
+    $('r-temp').value = ''; $('r-err').hidden = true; $('r-mp').innerHTML = '';
+    if (!D.despachos.length) {
+      $('r-desp').innerHTML = ''; $('r-desp').disabled = true;
+      $('r-list').innerHTML = '<div class="empty">No hay despachos de 345 en camino. Si llegó materia prima de afuera, toca "Materia prima".</div>';
+    } else {
+      $('r-desp').disabled = false;
+      $('r-desp').innerHTML = D.despachos.map((d, i) => `<option value="${i}">${esc(d.id)} · ${d.items.length} ${d.items.length === 1 ? 'artículo' : 'artículos'} · envió ${esc(d.quien.split(' ')[0])}</option>`).join('');
+      pintarRec();
+    }
+    setModoRec(D.despachos.length ? 'desp' : 'mp');
+  }
+  function pintarRec() {
+    const d = D.despachos[Number($('r-desp').value)];
+    $('r-list').innerHTML = d.items.map((it, j) => `<div class="item">
+        <div class="item-top solo"><span><b>${esc(it.n)}</b><span class="code">${it.lote ? esc(it.lote) + ' · ' : 'Materia prima · '}enviado ${n(it.cant)} ${esc(it.u)}</span></span></div>
+        <div class="qty"><input type="number" inputmode="decimal" id="rq-${j}" value="${it.cant}" aria-label="Cantidad recibida"><span class="unit">${esc(it.u)}</span></div>
+        <div class="ok-bad" data-j="${j}"><button class="g" aria-pressed="true" data-v="ok">Llegó bien</button><button class="b" aria-pressed="false" data-v="mal">Llegó mal</button></div>
+      </div>`).join('');
+    $('r-list').querySelectorAll('.ok-bad').forEach(g => g.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+      g.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    })));
+  }
+  $('r-desp').addEventListener('change', pintarRec);
+
+  function mostrarRecibido(titulo, copia, chips, filas) {
+    $('done-h').textContent = titulo;
+    $('done-copy').textContent = copia;
+    $('tape').hidden = true;
+    $('done-chips').innerHTML = chips;
+    $('done-diff').innerHTML = filas;
+    ultimo = 'rec';
+    ir('done');
+  }
+
+  $('r-save').addEventListener('click', () => {
+    $('r-err').hidden = true;
+    const btn = $('r-save');
+    if (modoRec === 'mp') {
+      const mp = leerMP($('r-mp'));
+      if (mp.incompleta) { $('r-err').textContent = 'A un artículo le falta el nombre o la cantidad.'; $('r-err').hidden = false; return; }
+      if (!mp.items.length) { $('r-err').textContent = 'Agrega al menos un artículo.'; $('r-err').hidden = false; return; }
+      const sede = document.querySelector('#r-sede [aria-pressed="true"]').dataset.v;
+      ocupado(btn, true);
+      server('guardarIngreso', { sede, items: mp.items, temp: $('r-temp').value, resp: $('resp').value })
+        .then(r => {
+          const malos = r.filas.filter(f => f.mal).length;
+          mostrarRecibido(malos ? 'Recibido con novedades' : 'Materia prima registrada',
+            malos ? 'Lo que llegó mal queda marcado en la hoja:' : 'Quedó registrada en la hoja.',
+            `<span class="chip">${esc(r.id)}</span><span class="chip">${r.sede === '345' ? 'Tres Cuatro Cinco' : 'Le Frat'}</span><span class="chip">Recibió ${esc($('resp').value.split(' ')[0])}</span>`,
+            r.filas.map(f => `<div class="${f.mal ? 'neg' : ''}"><span>${esc(f.n)}</span><span>${n(f.cant)} ${esc(f.u)}${f.mal ? ' · llegó mal' : ''}</span></div>`).join(''));
+          return cargar();
+        })
+        .catch(e => { $('r-err').textContent = msg(e); $('r-err').hidden = false; })
+        .finally(() => ocupado(btn, false));
+      return;
+    }
+    const d = D.despachos[Number($('r-desp').value)];
+    if (!d) return;
+    const items = d.items.map((it, j) => ({
+      k: it.k, rec: $('rq-' + j).value,
+      mal: $('r-list').querySelector(`.ok-bad[data-j="${j}"] [data-v="mal"]`).getAttribute('aria-pressed') === 'true',
+    }));
+    ocupado(btn, true);
+    server('guardarRecepcion', { id: d.id, items, temp: $('r-temp').value, resp: $('resp').value })
+      .then(r => {
+        const prob = r.filas.filter(f => f.dif !== 0 || f.mal).length;
+        mostrarRecibido(prob ? 'Recibido con novedades' : 'Recibido completo',
+          prob ? 'Las diferencias quedan marcadas en la hoja para revisarlas:' : 'Todo coincide con lo que salió de 345.',
+          `<span class="chip">${esc(r.id)}</span><span class="chip">Recibió ${esc($('resp').value.split(' ')[0])}</span>`,
+          r.filas.map(f => {
+            const txt = f.dif === 0 && !f.mal ? 'OK' : (f.dif ? (f.dif > 0 ? '+' : '−') + n(Math.abs(f.dif)) + ' ' + f.u : '') + (f.mal ? (f.dif ? ' · ' : '') + 'llegó mal' : '');
+            return `<div class="${f.dif || f.mal ? 'neg' : ''}"><span>${esc(f.n)}</span><span>${txt}</span></div>`;
+          }).join(''));
+        return cargar();
+      })
+      .catch(e => { $('r-err').textContent = msg(e); $('r-err').hidden = false; })
+      .finally(() => ocupado(btn, false));
+  });
+
+  cargar()
+    .then(() => { $('loading').hidden = true; ir('inicio'); })
+    .catch(e => { $('loading').hidden = true; $('fatal').textContent = 'No se pudo cargar: ' + msg(e); $('fatal').hidden = false; });
+})();
+</script>
+</body>
+</html>
