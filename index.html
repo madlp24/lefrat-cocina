@@ -182,7 +182,7 @@ input[type="date"] { width: 100%; font: 500 16px var(--f-body); color: var(--ink
 
   <section class="screen" id="s-desp" hidden>
     <p class="sub">Producciones</p>
-    <p class="copy-h">Marca lo que va en este envío. La cantidad ya viene llena con todo el lote; cámbiala si mandas menos.</p>
+    <p class="copy-h">Marca lo que va en este envío. La cantidad viene llena con todo lo que hay; si mandas menos, lo demás se queda en 345 para otro envío.</p>
     <div class="list" id="d-list"></div>
     <p class="sub">Materia prima</p>
     <div class="list" id="d-mp"></div>
@@ -419,13 +419,28 @@ input[type="date"] { width: 100%; font: 500 16px var(--f-body); color: var(--ink
       $('d-list').innerHTML = D.lotes.map((l, i) => `<div class="item" data-i="${i}">
           <label class="item-top" for="dk-${i}">
             <input type="checkbox" id="dk-${i}">
-            <span><b>${esc(l.n)}</b><span class="code">${esc(l.lote)} · ${esc(l.fecha)} · ${n(l.cant)} ${esc(l.u)}</span></span>
+            <span><b>${esc(l.n)}</b><span class="code">${esc(l.lote)} · ${esc(l.fecha)} · hay ${n(l.cant)} ${esc(l.u)}${l.real && l.real !== l.cant ? ' de ' + n(l.real) : ''}</span></span>
           </label>
-          <div class="qty" hidden><input type="number" inputmode="decimal" id="dq-${i}" value="${l.cant}" aria-label="Cantidad enviada"><span class="unit">${esc(l.u)}</span></div>
+          <div class="qty" hidden><input type="number" inputmode="decimal" id="dq-${i}" value="${l.cant}" max="${l.cant}" aria-label="Cantidad que envías"><span class="unit">${esc(l.u)}</span></div>
+          <span class="expect" id="dr-${i}" hidden></span>
         </div>`).join('');
       $('d-list').querySelectorAll('.item').forEach(el => {
+        const i = Number(el.dataset.i);
         const cb = el.querySelector('input[type=checkbox]');
-        cb.addEventListener('change', () => { el.classList.toggle('on', cb.checked); el.querySelector('.qty').hidden = !cb.checked; });
+        const resto = () => {
+          const l = D.lotes[i];
+          const v = Number(String($('dq-' + i).value).replace(',', '.'));
+          const q = Math.round((l.cant - (v || 0)) * 1000) / 1000;
+          $('dr-' + i).textContent = v > l.cant ? `Solo hay ${n(l.cant)} ${l.u} en 345` : q > 0 ? `Quedan ${n(q)} ${l.u} en 345 para otro envío` : 'Sale el lote completo';
+          $('dr-' + i).style.color = v > l.cant ? 'var(--bad)' : '';
+        };
+        cb.addEventListener('change', () => {
+          el.classList.toggle('on', cb.checked);
+          el.querySelector('.qty').hidden = !cb.checked;
+          $('dr-' + i).hidden = !cb.checked;
+          if (cb.checked) resto();
+        });
+        $('dq-' + i).addEventListener('input', resto);
       });
     }
   }
@@ -436,6 +451,8 @@ input[type="date"] { width: 100%; font: 500 16px var(--f-body); color: var(--ink
       const i = Number(el.dataset.i);
       if (el.querySelector('input[type=checkbox]').checked) items.push({ lote: D.lotes[i].lote, cant: $('dq-' + i).value || D.lotes[i].cant });
     });
+    const malo = items.find(it => { const l = D.lotes.find(x => x.lote === it.lote); const v = Number(String(it.cant).replace(',', '.')); return !(v > 0) || v > l.cant; });
+    if (malo) { $('d-err').textContent = 'Revisa la cantidad de ' + malo.lote + ': debe ser mayor que cero y no más de lo que hay.'; $('d-err').hidden = false; return; }
     const mp = leerMP($('d-mp'));
     if (mp.incompleta) { $('d-err').textContent = 'A una materia prima le falta el artículo o la cantidad.'; $('d-err').hidden = false; return; }
     items.push(...mp.items.map(x => ({ mp: true, n: x.n, u: x.u, cant: x.cant })));
@@ -447,8 +464,8 @@ input[type="date"] { width: 100%; font: 500 16px var(--f-body); color: var(--ink
         $('done-h').classList.remove('warn');
         $('done-copy').textContent = 'Escribe esto en la canasta o la nevera de transporte:';
         cinta(`<div class="l1">${esc(r.id)}</div><div>Para Le Frat · ${r.n} ${r.n === 1 ? 'artículo' : 'artículos'}</div><small>${esc($('resp').value.split(' ')[0])}</small>`);
-        $('done-chips').innerHTML = items.map(it => `<span class="chip">${esc(it.lote || it.n)}</span>`).join('');
-        $('done-diff').innerHTML = '';
+        $('done-chips').innerHTML = items.filter(it => !it.lote).map(it => `<span class="chip">${esc(it.n)}</span>`).join('');
+        $('done-diff').innerHTML = (r.lotes || []).map(l => `<div><span>${esc(l.lote)} · ${n(l.cant)} ${esc(l.u)}</span><span>${l.queda > 0 ? 'quedan ' + n(l.queda) + ' en 345' : 'completo'}</span></div>`).join('');
         ultimo = 'desp';
         ir('done');
         return cargar();
