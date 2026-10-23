@@ -181,6 +181,11 @@ input[type="date"] { width: 100%; font: 500 16px var(--f-body); color: var(--ink
   </section>
 
   <section class="screen" id="s-desp" hidden>
+    <div class="field" id="d-camino-w" hidden style="gap:10px">
+      <p class="sub">En camino a Le Frat</p>
+      <p class="copy-h">Se pueden editar hasta que Le Frat los reciba.</p>
+      <div class="list" id="d-camino"></div>
+    </div>
     <p class="sub">Producciones</p>
     <p class="copy-h">Marca lo que va en este envío. La cantidad viene llena con todo lo que hay; si mandas menos, lo demás se queda en 345 para otro envío.</p>
     <div class="list" id="d-list"></div>
@@ -227,6 +232,14 @@ input[type="date"] { width: 100%; font: 500 16px var(--f-body); color: var(--ink
     <button class="primary" id="r-save">Confirmar recepción</button>
   </section>
 
+  <section class="screen" id="s-edit" hidden>
+    <p class="copy-h" id="e-info"></p>
+    <div class="list" id="e-list"></div>
+    <p class="err" id="e-err" hidden></p>
+    <button class="ghost" id="e-anular">Anular despacho completo</button>
+    <button class="primary" id="e-save">Guardar cambios</button>
+  </section>
+
   <section class="screen" id="s-done" hidden>
     <p class="done-h" id="done-h">Guardado</p>
     <p class="copy-h" id="done-copy"></p>
@@ -243,8 +256,8 @@ input[type="date"] { width: 100%; font: 500 16px var(--f-body); color: var(--ink
   let D = { productos: [], responsables: [], lotes: [], insumos: [], despachos: [] };
   let P = {};
   const $ = id => document.getElementById(id);
-  const screens = ['inicio', 'prod', 'desp', 'rec', 'done'];
-  const TITULOS = { inicio: 'Cocina', prod: 'Producción', desp: 'Despacho', rec: 'Recepción', done: 'Listo' };
+  const screens = ['inicio', 'prod', 'desp', 'rec', 'edit', 'done'];
+  const TITULOS = { inicio: 'Cocina', prod: 'Producción', desp: 'Despacho', rec: 'Recepción', edit: 'Editar despacho', done: 'Listo' };
   let ultimo = 'prod';
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
   const n = v => Number(v).toLocaleString('es-CO');
@@ -411,7 +424,88 @@ input[type="date"] { width: 100%; font: 500 16px var(--f-body); color: var(--ink
   }
 
   // ---------- Despacho ----------
+  // ---------- Editar despachos en camino ----------
+  let editando = null;
+  function pintarCamino() {
+    $('d-camino-w').hidden = !D.despachos.length;
+    $('d-camino').innerHTML = D.despachos.map((d, i) => `<button class="tile" data-e="${i}"><span class="ic">✎</span>
+      <span><b>${esc(d.id)}</b><span>${d.items.length} ${d.items.length === 1 ? 'artículo' : 'artículos'} · envió ${esc(d.quien.split(' ')[0])} · ${esc(d.fecha)}</span>
+      <span class="count">Toca para editar</span></span></button>`).join('');
+    $('d-camino').querySelectorAll('[data-e]').forEach(b => b.addEventListener('click', () => abrirEdicion(Number(b.dataset.e))));
+  }
+  function maxEdicion(it) {
+    if (!it.lote) return Infinity;
+    const l = D.lotes.find(x => x.lote === it.lote);
+    return Math.round(((l ? l.cant : 0) + it.cant) * 1000) / 1000;
+  }
+  function abrirEdicion(i) {
+    editando = D.despachos[i];
+    $('e-info').textContent = `${editando.id}: cambia cantidades o quita lo que ya no va. Lo que quites vuelve al saldo de 345.`;
+    $('e-err').hidden = true;
+    $('e-anular').dataset.confirmar = '';
+    $('e-anular').textContent = 'Anular despacho completo';
+    $('e-list').innerHTML = editando.items.map((it, j) => {
+      const tope = maxEdicion(it);
+      return `<div class="item" data-j="${j}">
+        <div class="item-top solo"><span><b>${esc(it.n)}</b><span class="code">${it.lote ? esc(it.lote) : 'Materia prima'} · enviado ${n(it.cant)} ${esc(it.u)}${isFinite(tope) ? ' · máx ' + n(tope) : ''}</span></span></div>
+        <div class="qty"><input type="number" inputmode="decimal" id="eq-${j}" value="${it.cant}" aria-label="Nueva cantidad"><span class="unit">${esc(it.u)}</span></div>
+        <div class="ok-bad"><button class="g" aria-pressed="true" data-v="va">Va en el envío</button><button class="b" aria-pressed="false" data-v="quitar">Quitar</button></div>
+      </div>`;
+    }).join('');
+    $('e-list').querySelectorAll('.item').forEach(el => {
+      el.querySelectorAll('.ok-bad button').forEach(b => b.addEventListener('click', () => {
+        el.querySelectorAll('.ok-bad button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+        el.querySelector('.qty').hidden = b.dataset.v === 'quitar';
+        el.style.opacity = b.dataset.v === 'quitar' ? '.6' : '';
+      }));
+    });
+    ir('edit');
+  }
+  function enviarEdicion(items, btn) {
+    ocupado(btn, true);
+    server('editarDespacho', { id: editando.id, items, resp: $('resp').value })
+      .then(r => {
+        $('done-h').textContent = r.anulado ? 'Despacho anulado' : 'Despacho actualizado';
+        $('done-h').classList.toggle('warn', r.anulado);
+        $('done-copy').textContent = r.anulado ? 'Tacha el código en la canasta: ya no sale a Le Frat. Todo volvió al saldo de 345.' : 'Corrige lo que escribiste en la canasta si cambió algo:';
+        $('tape').hidden = true;
+        $('done-chips').innerHTML = `<span class="chip">${esc(r.id)}</span><span class="chip">${r.cambios} ${r.cambios === 1 ? 'cambio' : 'cambios'}</span>`;
+        $('done-diff').innerHTML = items.map(c => {
+          const it = editando.items.find(x => x.k === c.k);
+          return `<div class="${c.quitar ? 'neg' : ''}"><span>${esc(it.n)}</span><span>${c.quitar ? 'quitado' : n(it.cant) + ' → ' + n(Number(String(c.cant).replace(',', '.'))) + ' ' + esc(it.u)}</span></div>`;
+        }).join('');
+        ultimo = 'desp';
+        ir('done');
+        return cargar();
+      })
+      .catch(e => { $('e-err').textContent = msg(e); $('e-err').hidden = false; })
+      .finally(() => ocupado(btn, false));
+  }
+  $('e-save').addEventListener('click', () => {
+    $('e-err').hidden = true;
+    const items = [];
+    let problema = '';
+    editando.items.forEach((it, j) => {
+      const el = $('e-list').querySelector(`.item[data-j="${j}"]`);
+      if (el.querySelector('[data-v="quitar"]').getAttribute('aria-pressed') === 'true') { items.push({ k: it.k, quitar: true }); return; }
+      const v = Number(String($('eq-' + j).value).replace(',', '.'));
+      if (!(v > 0)) { problema = `La cantidad de ${it.n} debe ser mayor que cero. Si ya no va, toca "Quitar".`; return; }
+      if (v > maxEdicion(it)) { problema = `De ${it.n} puedes mandar máximo ${n(maxEdicion(it))} ${it.u}.`; return; }
+      if (v !== it.cant) items.push({ k: it.k, cant: v });
+    });
+    if (problema) { $('e-err').textContent = problema; $('e-err').hidden = false; return; }
+    if (!items.length) { $('e-err').textContent = 'No cambiaste nada.'; $('e-err').hidden = false; return; }
+    enviarEdicion(items, $('e-save'));
+  });
+  $('e-anular').addEventListener('click', () => {
+    const b = $('e-anular');
+    if (!b.dataset.confirmar) { b.dataset.confirmar = '1'; b.textContent = 'Toca otra vez para anular todo el despacho'; b.style.color = 'var(--bad)'; return; }
+    b.style.color = '';
+    enviarEdicion(editando.items.map(it => ({ k: it.k, quitar: true })), b);
+  });
+
   function prepDesp() {
+    pintarCamino();
     $('d-err').hidden = true; $('d-temp').value = ''; $('d-mp').innerHTML = '';
     if (!D.lotes.length) {
       $('d-list').innerHTML = '<div class="empty">No hay producciones pendientes en 345.</div>';
