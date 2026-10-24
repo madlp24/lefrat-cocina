@@ -144,6 +144,7 @@ input[type="date"] { width: 100%; font: 500 16px var(--f-body); color: var(--ink
   </section>
 
   <section class="screen" id="s-prod" hidden>
+    <button class="ghost" id="p-corr">Corregir o anular una producción</button>
     <div class="field"><label for="p-prod">Producto</label><select id="p-prod"></select></div>
     <div class="field">
       <span class="lbl">Tandas</span>
@@ -164,6 +165,11 @@ input[type="date"] { width: 100%; font: 500 16px var(--f-body); color: var(--ink
         <button aria-pressed="true" data-v="No">No</button>
         <button aria-pressed="false" data-v="Sí">Sí</button>
       </div>
+    </div>
+    <div class="field" id="p-subs-w" hidden style="gap:10px">
+      <p class="sub">Sub-recetas que usaste</p>
+      <p class="copy-h">Se descuentan de lo que hay en 345. Viene lo de la receta; cámbialo si usaste otra cantidad.</p>
+      <div class="list" id="p-subs"></div>
     </div>
     <div class="field" id="p-obs-w" hidden>
       <label for="p-obs">¿Qué cambiaste?</label>
@@ -232,6 +238,23 @@ input[type="date"] { width: 100%; font: 500 16px var(--f-body); color: var(--ink
     <button class="primary" id="r-save">Confirmar recepción</button>
   </section>
 
+  <section class="screen" id="s-pcorr" hidden>
+    <p class="copy-h">Producciones que siguen en 345. Toca la que quieras corregir o anular.</p>
+    <div class="list" id="pc-list"></div>
+  </section>
+
+  <section class="screen" id="s-pedit" hidden>
+    <p class="copy-h" id="pe-info"></p>
+    <div class="row2">
+      <div class="field"><label for="pe-tandas">Tandas</label><input id="pe-tandas" type="number" inputmode="decimal"></div>
+      <div class="field"><label for="pe-real" id="pe-real-lbl">Cantidad</label><input id="pe-real" type="number" inputmode="decimal"></div>
+    </div>
+    <span class="expect" id="pe-hint"></span>
+    <p class="err" id="pe-err" hidden></p>
+    <button class="ghost" id="pe-anular">Anular esta producción</button>
+    <button class="primary" id="pe-save">Guardar corrección</button>
+  </section>
+
   <section class="screen" id="s-edit" hidden>
     <p class="copy-h" id="e-info"></p>
     <div class="list" id="e-list"></div>
@@ -253,11 +276,11 @@ input[type="date"] { width: 100%; font: 500 16px var(--f-body); color: var(--ink
 
 <script>
 (function () {
-  let D = { productos: [], responsables: [], lotes: [], insumos: [], despachos: [] };
+  let D = { productos: [], responsables: [], lotes: [], insumos: [], subs: {}, despachos: [] };
   let P = {};
   const $ = id => document.getElementById(id);
-  const screens = ['inicio', 'prod', 'desp', 'rec', 'edit', 'done'];
-  const TITULOS = { inicio: 'Cocina', prod: 'Producción', desp: 'Despacho', rec: 'Recepción', edit: 'Editar despacho', done: 'Listo' };
+  const screens = ['inicio', 'prod', 'pcorr', 'pedit', 'desp', 'rec', 'edit', 'done'];
+  const TITULOS = { inicio: 'Cocina', prod: 'Producción', desp: 'Despacho', rec: 'Recepción', edit: 'Editar despacho', pcorr: 'Corregir', pedit: 'Corregir producción', done: 'Listo' };
   let ultimo = 'prod';
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
   const n = v => Number(v).toLocaleString('es-CO');
@@ -334,9 +357,38 @@ input[type="date"] { width: 100%; font: 500 16px var(--f-body); color: var(--ink
     $('p-expect').textContent = esp ? `Deberían salir ${n(esp)} ${p.u}` : 'Esta preparación aún no tiene cantidad esperada en la hoja.';
     $('p-peso-lbl').textContent = p.u === 'g' ? 'Peso final (g)' : p.u === 'paq' ? 'Paquetes que salieron' : 'Unidades que salieron';
     $('p-peso').placeholder = esp ? 'Ej. ' + Math.round(esp * 0.95) : '';
+    pintarSubs();
+  }
+  // Sub-recetas (ej. ketchup para salsa de papas): cantidad sugerida = receta × tandas
+  let subsTocadas = {};
+  const hayEn345 = c => D.lotes.filter(l => l.c === c).reduce((a, l) => a + l.cant, 0);
+  function pintarSubs() {
+    const lista = (D.subs || {})[$('p-prod').value] || [];
+    $('p-subs-w').hidden = !lista.length;
+    if (!lista.length) { $('p-subs').innerHTML = ''; return; }
+    const cod = $('p-prod').value;
+    if ($('p-subs').dataset.cod !== cod) {
+      subsTocadas = {};
+      $('p-subs').dataset.cod = cod;
+      $('p-subs').innerHTML = lista.map((x, j) => `<div class="item">
+          <div class="item-top solo"><span><b>${esc(x.n)}</b><span class="code" id="psh-${j}"></span></span></div>
+          <div class="qty"><input type="number" inputmode="decimal" id="ps-${j}" aria-label="${esc(x.n)} usada"><span class="unit">${esc((P[x.c] || {}).u || 'g')}</span></div>
+        </div>`).join('');
+      lista.forEach((x, j) => $('ps-' + j).addEventListener('input', () => { subsTocadas[j] = true; }));
+    }
+    lista.forEach((x, j) => {
+      if (!subsTocadas[j]) $('ps-' + j).value = Math.round(x.q * tandas * 1000) / 1000;
+      const hay = hayEn345(x.c);
+      $('psh-' + j).textContent = `Receta: ${n(x.q)} por tanda · hay ${n(hay)} ${(P[x.c] || {}).u || 'g'} en 345`;
+    });
+  }
+  function leerSubs() {
+    const lista = (D.subs || {})[$('p-prod').value] || [];
+    return lista.map((x, j) => ({ c: x.c, cant: $('ps-' + j) ? $('ps-' + j).value : '' }));
   }
   function prepProd() {
     tandas = 1; ['p-peso', 'p-obs', 'p-temp', 'p-porc'].forEach(id => { $(id).value = ''; });
+    $('p-subs').dataset.cod = '';
     $('p-err').hidden = true; setSeg('No'); pintarProd();
   }
   $('p-prod').addEventListener('change', pintarProd);
@@ -354,13 +406,72 @@ input[type="date"] { width: 100%; font: 500 16px var(--f-body); color: var(--ink
   }
   document.querySelectorAll('#p-camb button').forEach(b => b.addEventListener('click', () => setSeg(b.dataset.v)));
 
+  // ---------- Corregir o anular producciones ----------
+  let corrigiendo = null;
+  $('p-corr').addEventListener('click', () => {
+    $('pc-list').innerHTML = D.lotes.length ? D.lotes.map((l, i) => `<button class="tile" data-pc="${i}"><span class="ic">✎</span>
+      <span><b>${esc(l.n)}</b><span>${esc(l.lote)} · ${esc(l.fecha)} · ${n(l.real)} ${esc(l.u)} · ${n(l.tandas)} tandas</span>
+      ${l.sal > 0 ? `<span class="count">Ya salieron ${n(l.sal)} ${esc(l.u)}</span>` : ''}</span></button>`).join('')
+      : '<div class="empty">No hay producciones en 345 para corregir.</div>';
+    $('pc-list').querySelectorAll('[data-pc]').forEach(b => b.addEventListener('click', () => abrirCorreccion(Number(b.dataset.pc))));
+    ir('pcorr');
+  });
+  function abrirCorreccion(i) {
+    corrigiendo = D.lotes[i];
+    const l = corrigiendo;
+    $('pe-info').textContent = `${l.n} · ${l.lote} · ${l.fecha}`;
+    $('pe-tandas').value = l.tandas;
+    $('pe-real').value = l.real;
+    $('pe-real-lbl').textContent = l.u === 'g' ? 'Peso final (g)' : 'Unidades';
+    $('pe-hint').textContent = l.sal > 0 ? `Ya salieron ${n(l.sal)} ${l.u} de este lote: la cantidad no puede ser menor y no se puede anular.` : 'Si cambias las tandas, se recalcula el consumo de ingredientes.';
+    $('pe-err').hidden = true;
+    $('pe-anular').hidden = l.sal > 0;
+    $('pe-anular').dataset.confirmar = '';
+    $('pe-anular').textContent = 'Anular esta producción';
+    $('pe-anular').style.color = '';
+    ir('pedit');
+  }
+  function enviarCorreccion(datos, btn) {
+    $('pe-err').hidden = true;
+    ocupado(btn, true);
+    server('editarProduccion', Object.assign({ lote: corrigiendo.lote, resp: $('resp').value }, datos))
+      .then(r => {
+        $('done-h').textContent = r.anulado ? 'Producción anulada' : 'Producción corregida';
+        $('done-h').classList.toggle('warn', r.anulado);
+        $('done-copy').textContent = r.anulado ? 'Tacha el rótulo de la bolsa: este lote ya no existe.' : 'Quedó corregida en la hoja.';
+        $('tape').hidden = true;
+        $('done-chips').innerHTML = `<span class="chip">${esc(r.lote)}</span>` +
+          (!r.anulado && r.rend !== null ? `<span class="chip ${r.rend < 0.9 ? 'low' : 'good'}">Rendimiento ${Math.round(r.rend * 100)} %</span>` : '');
+        $('done-diff').innerHTML = r.anulado
+          ? (r.devueltos && r.devueltos.length ? `<div><span>Sub-recetas devueltas a 345</span><span>${r.devueltos.map(esc).join(', ')}</span></div>` : '')
+          : (r.cambios || []).map(c => `<div><span>${esc(c)}</span><span>✓</span></div>`).join('');
+        ultimo = 'prod';
+        ir('done');
+        return cargar();
+      })
+      .catch(e => { $('pe-err').textContent = msg(e); $('pe-err').hidden = false; })
+      .finally(() => ocupado(btn, false));
+  }
+  $('pe-save').addEventListener('click', () => {
+    const t = Number(String($('pe-tandas').value).replace(',', '.'));
+    const q = Number(String($('pe-real').value).replace(',', '.'));
+    if (!(t > 0) || !(q > 0)) { $('pe-err').textContent = 'Las tandas y la cantidad deben ser mayores que cero.'; $('pe-err').hidden = false; return; }
+    if (q < corrigiendo.sal) { $('pe-err').textContent = `Ya salieron ${n(corrigiendo.sal)} ${corrigiendo.u}: la cantidad no puede ser menor.`; $('pe-err').hidden = false; return; }
+    enviarCorreccion({ tandas: t, real: q }, $('pe-save'));
+  });
+  $('pe-anular').addEventListener('click', () => {
+    const b = $('pe-anular');
+    if (!b.dataset.confirmar) { b.dataset.confirmar = '1'; b.textContent = 'Toca otra vez para anular la producción'; b.style.color = 'var(--bad)'; return; }
+    enviarCorreccion({ anular: true }, b);
+  });
+
   $('p-save').addEventListener('click', () => {
     const real = Number(String($('p-peso').value).replace(',', '.'));
     if (!real || real <= 0) { $('p-err').textContent = 'Escribe la cantidad final para poder guardar.'; $('p-err').hidden = false; $('p-peso').focus(); return; }
     const cambios = document.querySelector('#p-camb [aria-pressed="true"]').dataset.v;
     const btn = $('p-save'); ocupado(btn, true);
     server('guardarProduccion', { c: $('p-prod').value, tandas, real, cambios, obs: $('p-obs').value,
-      temp: $('p-temp').value, porc: $('p-porc').value, resp: $('resp').value })
+      temp: $('p-temp').value, porc: $('p-porc').value, resp: $('resp').value, subs: leerSubs() })
       .then(r => {
         $('done-h').textContent = 'Producción guardada';
         $('done-h').classList.remove('warn');
@@ -372,7 +483,7 @@ input[type="date"] { width: 100%; font: 500 16px var(--f-body); color: var(--ink
         $('done-chips').innerHTML =
           (r.rend !== null ? `<span class="chip ${bajo ? 'low' : 'good'}">Rendimiento ${Math.round(r.rend * 100)} %${bajo ? ' · revisar' : ''}</span>` : '') +
           `<span class="chip">Elaborado ${esc(r.elaborado)}</span><span class="chip">${n(r.real)} ${esc(r.u)}</span>`;
-        $('done-diff').innerHTML = '';
+        $('done-diff').innerHTML = (r.usos || []).map(x => `<div class="${x.falta > 0 ? 'neg' : ''}"><span>${esc(x.n || x.c)} usada</span><span>${n(x.usado)} ${esc(x.u)}${x.lotes.length ? ' de ' + x.lotes.map(l => esc(l.lote)).join(', ') : ''}${x.falta > 0 ? ' · faltaron ' + n(x.falta) + ' en 345' : ''}</span></div>`).join('');
         ultimo = 'prod';
         ir('done');
         return cargar();
